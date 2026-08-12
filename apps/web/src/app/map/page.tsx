@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Map, { Source, Layer, MapRef } from 'react-map-gl';
 import type { LineLayer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Search, Navigation, AlertTriangle, Menu } from 'lucide-react';
+import { io } from 'socket.io-client';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiYm9ndXMtdG9rZW4iLCJhIjoiYm9ndXN0b2tlbiJ9.bogus-token'; // Fallback token
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function LiveMap() {
   const [viewState, setViewState] = useState({
@@ -16,8 +18,50 @@ export default function LiveMap() {
     pitch: 45,
   });
 
-  // Mock segments for visual demonstration
-  const geojson = {
+  const [segments, setSegments] = useState<any[]>([]);
+
+  useEffect(() => {
+    // 1. Fetch initial segments
+    fetch(`${API_URL}/api/segments`)
+      .then(res => res.json())
+      .then(data => {
+        setSegments(data);
+      })
+      .catch(err => console.error("Failed to fetch segments", err));
+
+    // 2. Connect to WebSocket for live updates
+    const socket = io(`${API_URL}/traffic-stream`);
+    
+    socket.on('connect', () => {
+      // Subscribe to all segments for now (or a specific bounding box)
+      socket.emit('subscribe', { segmentIds: segments.map((s: any) => s.id) });
+    });
+
+    socket.on('congestion_update', (update) => {
+      setSegments(prev => prev.map(seg => 
+        seg.id === update.segmentId 
+          ? { ...seg, current_congestion: update.newCongestionLevel, confidence: update.confidence }
+          : seg
+      ));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  // Convert to GeoJSON for Mapbox
+  const geojson = useMemo(() => ({
+    type: 'FeatureCollection',
+    features: segments.map(seg => ({
+      type: 'Feature',
+      properties: { congestion: seg.current_congestion, id: seg.id, name: seg.name },
+      geometry: seg.geometry // Assuming the backend returns standard GeoJSON geometry
+    }))
+  }), [segments]);
+
+  // Fallback mock data if API fails to load
+  const displayGeojson = segments.length > 0 ? geojson : {
     type: 'FeatureCollection',
     features: [
       {
@@ -29,11 +73,6 @@ export default function LiveMap() {
         type: 'Feature',
         properties: { congestion: 'Medium', id: '2' },
         geometry: { type: 'LineString', coordinates: [[3.4, 6.5], [3.45, 6.45]] }
-      },
-      {
-        type: 'Feature',
-        properties: { congestion: 'Low', id: '3' },
-        geometry: { type: 'LineString', coordinates: [[3.45, 6.43], [3.55, 6.45]] }
       }
     ]
   };
@@ -77,13 +116,13 @@ export default function LiveMap() {
           mapStyle="mapbox://styles/mapbox/dark-v11"
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN || MAPBOX_TOKEN}
         >
-          <Source id="segments" type="geojson" data={geojson as any}>
+          <Source id="segments" type="geojson" data={displayGeojson as any}>
             <Layer {...lineLayer} />
           </Source>
         </Map>
       </div>
 
-      {/* Bottom Sheet UI (Mobile First) */}
+      {/* Bottom Sheet UI */}
       <div className="absolute bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-xl border-t border-slate-700 p-4 rounded-t-3xl shadow-[0_-10px_40px_rgba(0,0,0,0.3)] z-10">
         <div className="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-6"></div>
         
@@ -112,22 +151,6 @@ export default function LiveMap() {
             <div className="text-right">
               <div className="text-lg font-bold text-slate-100">45 min</div>
               <div className="text-xs text-orange-500 font-semibold bg-orange-500/10 px-2 py-1 rounded-md inline-block mt-1">High Congestion</div>
-            </div>
-          </div>
-          
-          <div className="bg-slate-800/50 rounded-2xl p-4 flex items-center justify-between border border-slate-700/50 active:bg-slate-800 transition-colors">
-            <div className="flex items-center">
-              <div className="bg-slate-700 p-2 rounded-xl mr-4">
-                <Navigation size={20} className="text-slate-300" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-slate-100">Ikeja City Mall</h4>
-                <p className="text-sm text-slate-400">Via Ikorodu Rd</p>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-bold text-slate-100">22 min</div>
-              <div className="text-xs text-teal-500 font-semibold bg-teal-500/10 px-2 py-1 rounded-md inline-block mt-1">Clear</div>
             </div>
           </div>
         </div>

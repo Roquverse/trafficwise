@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Map, { Source, Layer, MapRef } from 'react-map-gl';
 import type { LineLayer } from 'react-map-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { Search, AlertTriangle, TrendingUp, Clock } from 'lucide-react';
+import { io } from 'socket.io-client';
 
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiYm9ndXMtdG9rZW4iLCJhIjoiYm9ndXN0b2tlbiJ9.bogus-token'; // Fallback token
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 export default function OpsMap() {
   const [viewState, setViewState] = useState({
@@ -16,7 +18,47 @@ export default function OpsMap() {
     pitch: 0,
   });
 
-  const geojson = {
+  const [segments, setSegments] = useState<any[]>([]);
+
+  useEffect(() => {
+    // 1. Fetch initial segments
+    fetch(`${API_URL}/api/segments`)
+      .then(res => res.json())
+      .then(data => {
+        setSegments(data);
+      })
+      .catch(err => console.error("Failed to fetch segments", err));
+
+    // 2. Connect to WebSocket for live updates
+    const socket = io(`${API_URL}/traffic-stream`);
+    
+    socket.on('connect', () => {
+      socket.emit('subscribe', { segmentIds: segments.map((s: any) => s.id) });
+    });
+
+    socket.on('congestion_update', (update) => {
+      setSegments(prev => prev.map(seg => 
+        seg.id === update.segmentId 
+          ? { ...seg, current_congestion: update.newCongestionLevel, confidence: update.confidence }
+          : seg
+      ));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  const geojson = useMemo(() => ({
+    type: 'FeatureCollection',
+    features: segments.map(seg => ({
+      type: 'Feature',
+      properties: { congestion: seg.current_congestion, id: seg.id, name: seg.name },
+      geometry: seg.geometry
+    }))
+  }), [segments]);
+
+  const displayGeojson = segments.length > 0 ? geojson : {
     type: 'FeatureCollection',
     features: [
       {
@@ -72,7 +114,7 @@ export default function OpsMap() {
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {geojson.features.map(f => (
+          {displayGeojson.features.map(f => (
             <div key={f.properties.id} className="bg-slate-950 p-4 rounded-xl border border-slate-800 hover:border-slate-600 transition-colors cursor-pointer group">
               <div className="flex justify-between items-start mb-2">
                 <h3 className="font-semibold text-slate-200 group-hover:text-primary transition-colors">{f.properties.name}</h3>
@@ -101,7 +143,7 @@ export default function OpsMap() {
           mapStyle="mapbox://styles/mapbox/dark-v11"
           mapboxAccessToken={process.env.NEXT_PUBLIC_MAPBOX_TOKEN || MAPBOX_TOKEN}
         >
-          <Source id="segments" type="geojson" data={geojson as any}>
+          <Source id="segments" type="geojson" data={displayGeojson as any}>
             <Layer {...lineLayer} />
           </Source>
         </Map>
