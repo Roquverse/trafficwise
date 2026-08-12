@@ -8,15 +8,14 @@ import { LayoutDashboard, Map as MapIcon, Activity, Settings, LogOut } from 'luc
 export default function OpsLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(true);
 
   useEffect(() => {
     // In a real app, this would check the JWT or session token for the 'Ops' role
     const mockRoleCheck = true; // Simulating successful auth for demonstration
     if (!mockRoleCheck) {
+      setIsAuthorized(false);
       router.push('/');
-    } else {
-      setIsAuthorized(true);
     }
   }, [router]);
 

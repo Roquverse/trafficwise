@@ -1,7 +1,6 @@
 "use server";
 
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
@@ -96,7 +95,7 @@ export async function getUserSession() {
   try {
     const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
     return payload;
-  } catch (e) {
+  } catch {
     return null;
   }
 }

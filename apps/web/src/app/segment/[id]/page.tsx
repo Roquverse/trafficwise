@@ -119,7 +119,7 @@ export default function SegmentDetail({ params }: { params: { id: string } }) {
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center">
           <div className="bg-slate-800 w-full sm:w-96 rounded-t-3xl sm:rounded-3xl p-6 border border-slate-700">
             <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-slate-100">What's happening?</h2>
+              <h2 className="text-xl font-bold text-slate-100">What&apos;s happening?</h2>
               <button onClick={() => setIsReportModalOpen(false)} className="text-slate-400 p-2">✕</button>
             </div>
             
