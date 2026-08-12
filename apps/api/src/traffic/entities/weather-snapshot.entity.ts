@@ -1,4 +1,5 @@
-import { Entity, PrimaryGeneratedColumn, Column, Geometry } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import type { Geometry } from 'typeorm';
 
 @Entity('weather_snapshot')
 export class WeatherSnapshot {

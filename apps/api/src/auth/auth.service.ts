@@ -23,14 +23,14 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { email: user.email, sub: user.id, role: user.role };
+    const payload = { email: user.email, sub: user.id, role: user.role, name: user.name };
     return {
       access_token: this.jwtService.sign(payload),
       role: user.role,
     };
   }
   
-  async register(email: string, pass: string, role: Role = Role.COMMUTER) {
+  async register(email: string, pass: string, role: Role = Role.COMMUTER, name?: string) {
     const existing = await this.usersRepository.findOne({ where: { email } });
     if (existing) {
       throw new UnauthorizedException('User already exists');
@@ -39,7 +39,10 @@ export class AuthService {
     const salt = await bcrypt.genSalt();
     const passwordHash = await bcrypt.hash(pass, salt);
     
-    const user = this.usersRepository.create({ email, passwordHash, role });
+    // Default name if not provided
+    const finalName = name || email.split('@')[0];
+    
+    const user = this.usersRepository.create({ email, passwordHash, role, name: finalName });
     await this.usersRepository.save(user);
     
     return this.login(user);

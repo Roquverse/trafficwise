@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Param, Post, Body, UseGuards, Request, Query } from '@nestjs/common';
 import { TrafficService } from '../services/traffic.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../../auth/guards/roles.guard';
@@ -19,9 +19,14 @@ export class TrafficController {
     return this.trafficService.getSegmentDetails(id);
   }
 
+  @Get('alerts')
+  async getActiveAlerts(@Query('dest') dest?: string) {
+    return this.trafficService.getActiveAlerts(dest);
+  }
+
   @UseGuards(JwtAuthGuard)
-  @Post('reports')
-  async reportIncident(@Request() req, @Body() body) {
+  @Post('incident')
+  async reportIncident(@Request() req: any, @Body() body: any) {
     return this.trafficService.reportIncident(req.user.userId, body.segmentId, body.reportType);
   }
 
