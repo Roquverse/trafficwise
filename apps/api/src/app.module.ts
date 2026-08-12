@@ -8,6 +8,11 @@ import { WeatherSnapshot } from './traffic/entities/weather-snapshot.entity';
 import { EventFlag } from './traffic/entities/event-flag.entity';
 import { Prediction } from './traffic/entities/prediction.entity';
 import { UserReport } from './traffic/entities/user-report.entity';
+import { User } from './auth/entities/user.entity';
+
+import { AuthModule } from './auth/auth.module';
+import { TrafficModule } from './traffic/traffic.module';
+import { StreamModule } from './stream/stream.module';
 
 @Module({
   imports: [
@@ -25,9 +30,13 @@ import { UserReport } from './traffic/entities/user-report.entity';
         EventFlag,
         Prediction,
         UserReport,
+        User,
       ],
       synchronize: true, // Auto-create tables for now; we'll add migrations later
     }),
+    AuthModule,
+    TrafficModule,
+    StreamModule,
   ],
   controllers: [AppController],
   providers: [AppService],
